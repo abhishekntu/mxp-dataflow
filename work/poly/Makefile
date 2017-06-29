@@ -19,7 +19,7 @@ poly_neon:
 	$(CC)  $(NEON_GCC_IDIR) $(NEON_FLAGS) -DNEON poly.c -o poly_neon
 
 poly_mxp:
-	$(CC) -O3  $(MXP_IDIR) $(MXP_FLAGS) poly_mxp.c -o poly_mxp $(LDIR) $(LIBS)
+	$(CC) -O3  $(MXP_IDIR) $(MXP_FLAGS) -DMXP poly_mxp.c -o poly_mxp $(LDIR) $(LIBS)
 
 clean:
 	rm -f poly_arm 
