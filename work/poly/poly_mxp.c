@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -9,17 +10,19 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <math.h>
+#ifdef MXP
 #include "vbx.h"
 #include "vbx_port.h"
 #include "vbx_common.h"
 #include "vectorblox_mxp_lin.h"
+#endif
 #define N 256
 #define M 65536
 #define ops 5
 
 uint32_t i;
 
-
+#ifdef MXP
 void kernel_mxp(int8_t **X, int8_t **Y, int nx, int ny)
 {
 int8_t a = 2;
@@ -56,9 +59,37 @@ vbx_sp_free();
 vbx_shared_free(sc_X);
 vbx_shared_free(sc_Y);
 }
+#endif
 
+void kernel(int8_t **X, int8_t **Y, int nx, int ny)
+{
+int8_t a = 2;
+int8_t b = 2;
+int8_t c = 2;
+int8_t *x = *X;
+int8_t *y = *Y;
+clock_t start,diff;
+double milliseconds;
 
-void init_data(int8_t **X, int8_t **Y, int nx, int ny)
+start=clock();
+for(i=0;i<N;i++){
+y[i]=a*x[i]*x[i]+ b*x[i] + c;
+}
+diff = clock()-start;
+milliseconds = (double)(diff)*1000 / CLOCKS_PER_SEC;
+#ifdef NEON
+printf("Maximum Throughput for Poly2 kernel on Neon in (Gops/sec) is----> %g Gops/sec\n",(N*ops*pow(10,3))/(milliseconds*pow(10,9)));
+#endif
+#ifdef ARM
+printf("Maximum Throughput for Poly2 kernel on ARM in (Gops/sec) is----> %g Gops/sec\n",(N*ops*pow(10,3))/(milliseconds*pow(10,9)));
+#endif
+free(X);
+free(Y);
+
+}
+
+#ifdef MXP
+void init_data_mxp(int8_t **X, int8_t **Y, int nx, int ny)
 {
 int8_t *t_X = *X;
 int8_t *t_Y = *Y;
@@ -72,7 +103,22 @@ for(i=0;i<nx*ny;i++){
 }
 
 }
+#endif
 
+void init_data(int8_t **X, int8_t **Y, int nx, int ny)
+{
+int8_t *t_X = *X;
+int8_t *t_Y = *Y;
+
+t_X=(int8_t *)malloc(N*sizeof(int8_t));
+t_Y=(int8_t *)malloc(N*sizeof(int8_t));
+
+for(i=0;i<nx*ny;i++){
+	t_X[i]=1;
+	t_Y[i]=0;
+}
+
+}
 int main(int argc, char *argv[])
 {
 
@@ -83,7 +129,14 @@ VectorBlox_MXP_Initialize("mxp0","cma");
 int8_t *X, *Y;
 int nx = N;
 int ny = M;
-init_data(&X, &Y, nx, ny);
+
+#ifdef MXP
+init_data_mxp(&X, &Y, nx, ny);
 kernel_mxp(&X,&Y,nx,ny);
+#else
+init_data(&X, &Y, nx, ny);
+kernel(&X,&Y,nx,ny);
+#endif
+
 return 0;
 }
